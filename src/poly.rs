@@ -4,6 +4,7 @@ pub struct Poly {
     base: char,
 }
 
+// Instantiation functions
 #[allow(dead_code)]
 impl Poly {
     pub fn new(coeff: Vec<isize>, base: char) -> Self {
@@ -137,7 +138,11 @@ impl Poly {
     pub fn len(&self) -> usize {
         self.coeff.len()
     }
+}
 
+// Helper functions
+#[allow(dead_code)]
+impl Poly {
     // Descending exponent order
     pub fn desc(&self) -> Self {
         let mut sorted = self.coeff.iter().zip(self.exp.iter()).collect::<Vec<_>>();
