@@ -84,7 +84,7 @@ where
                             exp_sign = if c == '+' { true } else { false };
                         }
                     }
-                    '0'..='9' => {
+                    '0'..='9' | '.' => {
                         if !reached_base {
                             coeff_digits.push(c);
                         } else {
