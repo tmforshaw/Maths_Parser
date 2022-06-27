@@ -1,24 +1,28 @@
-pub struct Poly {
-    coeff: Vec<isize>,
-    exp: Vec<isize>,
+use crate::calculus::{Derivative, Integral};
+
+use num_traits::cast::FromPrimitive;
+
+#[derive(Debug, Default, Clone)]
+pub struct Poly<T> {
+    coeff: Vec<T>,
+    exp: Vec<T>,
     base: char,
 }
 
 // Instantiation functions
 #[allow(dead_code)]
-impl Poly {
-    pub fn new(coeff: Vec<isize>, base: char) -> Self {
-        Self {
-            coeff: coeff.clone(),
-            exp: ((0 as isize)..(coeff.len() as isize))
-                .collect::<Vec<_>>()
-                .try_into()
-                .expect("Wrong size iterator"),
-            base,
-        }
-    }
-
-    fn with_exp(coeff: Vec<isize>, exp: Vec<isize>, base: char) -> Self {
+impl<
+        T: std::ops::Sub<Output = T>
+            + std::ops::Mul<Output = T>
+            + std::ops::Div<Output = T>
+            + std::ops::Add<Output = T>
+            + FromPrimitive
+            + std::str::FromStr,
+    > Poly<T>
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    fn new(coeff: Vec<T>, exp: Vec<T>, base: char) -> Self {
         assert_eq!(coeff.len(), exp.len());
 
         Self { coeff, exp, base }
@@ -109,30 +113,43 @@ impl Poly {
             let coeff_val = coeff_digits
                 .into_iter()
                 .collect::<String>()
-                .parse::<isize>()
+                .as_str()
+                .parse::<T>()
                 .unwrap()
-                * if coeff_sign { 1 } else { -1 };
+                * if coeff_sign {
+                    FromPrimitive::from_isize(1).unwrap()
+                } else {
+                    FromPrimitive::from_isize(-1).unwrap()
+                };
 
-            let mut exp_val = 0;
+            let mut exp_val: T = FromPrimitive::from_isize(0).unwrap();
 
             if exp_digits.len() == 0 {
                 if reached_base {
-                    exp_val = if exp_sign { 1 } else { -1 };
+                    exp_val = if exp_sign {
+                        FromPrimitive::from_isize(1).unwrap()
+                    } else {
+                        FromPrimitive::from_isize(-1).unwrap()
+                    };
                 }
             } else {
                 exp_val = exp_digits
                     .into_iter()
                     .collect::<String>()
-                    .parse::<isize>()
+                    .parse::<T>()
                     .unwrap()
-                    * if exp_sign { 1 } else { -1 };
+                    * if exp_sign {
+                        FromPrimitive::from_isize(1).unwrap()
+                    } else {
+                        FromPrimitive::from_isize(-1).unwrap()
+                    };
             }
 
             coeff_vals.push(coeff_val);
             exp_vals.push(exp_val);
         }
 
-        Self::with_exp(coeff_vals, exp_vals, base.unwrap())
+        Self::new(coeff_vals, exp_vals, base.unwrap())
     }
 
     pub fn len(&self) -> usize {
@@ -142,11 +159,14 @@ impl Poly {
 
 // Helper functions
 #[allow(dead_code)]
-impl Poly {
+impl<T: FromPrimitive + std::cmp::PartialOrd + std::str::FromStr + std::marker::Copy> Poly<T>
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
     // Descending exponent order
     pub fn desc(&self) -> Self {
         let mut sorted = self.coeff.iter().zip(self.exp.iter()).collect::<Vec<_>>();
-        sorted.sort_by(|a, b| b.1.cmp(a.1));
+        sorted.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
 
         let (c, e) = sorted.into_iter().unzip();
 
@@ -160,7 +180,7 @@ impl Poly {
     // Ascending exponent order
     pub fn asc(&self) -> Self {
         let mut sorted = self.coeff.iter().zip(self.exp.iter()).collect::<Vec<_>>();
-        sorted.sort_by(|a, b| a.1.cmp(b.1));
+        sorted.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
 
         let (c, e) = sorted.into_iter().unzip();
 
@@ -171,18 +191,32 @@ impl Poly {
         }
     }
 
-    pub fn degree(&self) -> isize {
-        self.exp.iter().max().unwrap().clone()
+    pub fn degree(&self) -> T {
+        self.exp
+            .iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap()
+            .clone()
     }
 }
 
-impl std::fmt::Display for Poly {
+// Allow Poly to be printed
+impl<
+        T: FromPrimitive
+            + std::cmp::PartialOrd
+            + std::str::FromStr
+            + std::fmt::Display
+            + num_traits::sign::Signed,
+    > std::fmt::Display for Poly<T>
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut msg = String::new();
 
         for i in 0..self.len() {
             // Positive coefficient
-            if self.coeff[i] >= 0 {
+            if self.coeff[i] >= FromPrimitive::from_isize(0).unwrap() {
                 // Not the first term to be printed
                 if i > 0 {
                     msg.push_str(" + ");
@@ -198,16 +232,16 @@ impl std::fmt::Display for Poly {
                 }
             }
 
-            if self.exp[i].abs() > 0 {
-                if self.coeff[i] != 1 {
+            if self.exp[i].abs() > FromPrimitive::from_isize(0).unwrap() {
+                if self.coeff[i] != FromPrimitive::from_isize(1).unwrap() {
                     msg.push_str(format!("{}{}", self.coeff[i].abs(), self.base).as_str());
                 } else {
                     msg.push(self.base);
                 }
 
-                if self.exp[i] != 1 {
+                if self.exp[i] != FromPrimitive::from_isize(1).unwrap() {
                     // Positive exponent
-                    if self.exp[i] > 0 {
+                    if self.exp[i] > FromPrimitive::from_isize(0).unwrap() {
                         msg.push_str(format!("^{}", self.exp[i]).as_str());
                     }
                     // Negative exponent
@@ -221,5 +255,110 @@ impl std::fmt::Display for Poly {
         }
 
         write!(f, "{}", msg)
+    }
+}
+
+// Differentiation
+impl<
+        T: Copy
+            + std::ops::Sub<Output = T>
+            + std::ops::Mul<Output = T>
+            + std::ops::Add<Output = T>
+            + FromPrimitive
+            + std::cmp::PartialOrd
+            + std::str::FromStr
+            + std::str::FromStr,
+    > Derivative for Poly<T>
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    fn derivative(&self) -> Self {
+        let (new_coeff, new_exp) = self
+            .coeff
+            .clone()
+            .iter()
+            .zip(self.exp.clone().iter())
+            .filter_map(|(&c, &e)| {
+                // Remove if new coefficient is 0
+                if c * e == FromPrimitive::from_isize(0).unwrap() {
+                    None
+                } else {
+                    Some((c * e, e - FromPrimitive::from_isize(1).unwrap()))
+                }
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .unzip();
+
+        Self {
+            coeff: new_coeff,
+            exp: new_exp,
+            base: self.base,
+        }
+    }
+
+    fn nth_derivative(&self, n: usize) -> Self {
+        let mut p = self.clone();
+
+        for _i in 0..n {
+            p = p.derivative();
+        }
+
+        p
+    }
+}
+
+// Integration
+impl<
+        T: Copy
+            + std::ops::Mul<Output = T>
+            + std::ops::Div<Output = T>
+            + std::ops::Add<Output = T>
+            + FromPrimitive
+            + std::cmp::PartialOrd
+            + std::str::FromStr
+            + std::str::FromStr,
+    > Integral for Poly<T>
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    fn integral(&self) -> Self {
+        let (new_coeff, new_exp) = self
+            .coeff
+            .clone()
+            .iter()
+            .zip(self.exp.clone().iter())
+            .filter_map(|(&c, &e)| {
+                // Remove if new coefficient is 0
+                if c / (e + FromPrimitive::from_isize(1).unwrap())
+                    == FromPrimitive::from_isize(0).unwrap()
+                {
+                    None
+                } else {
+                    Some((
+                        c / (e + FromPrimitive::from_isize(1).unwrap()),
+                        e + FromPrimitive::from_isize(1).unwrap(),
+                    ))
+                }
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .unzip();
+
+        Self {
+            coeff: new_coeff,
+            exp: new_exp,
+            base: self.base,
+        }
+    }
+
+    fn nth_integral(&self, n: usize) -> Self {
+        let mut p = self.clone();
+
+        for _i in 0..n {
+            p = p.integral();
+        }
+
+        p
     }
 }

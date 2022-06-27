@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-fn get_input(message: &str) -> String {
+pub fn get_input(message: &str) -> String {
     use std::io::{stdin, stdout, Write};
     let mut s = String::new();
 
@@ -15,6 +15,6 @@ fn get_input(message: &str) -> String {
 #[macro_export]
 macro_rules! input {
     ($($arg:tt)*) => {
-        $crate::get_input(std::format!("{}", std::format_args!($($arg)*)).as_str())
+        $crate::input::get_input(std::format!("{}", std::format_args!($($arg)*)).as_str())
     };
 }
