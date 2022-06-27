@@ -43,194 +43,271 @@ impl<const N: usize> Poly<N> {
             .next()
             .unwrap();
 
+        // Split the expression into the different terms
+
         let msg_chars = msg.chars().collect::<Vec<char>>();
-        let mut terms: Vec<(isize, isize)> = Vec::new();
-
-        // Memory for the for loop
-        let mut coeff_sign = false;
-        let mut exp_sign = false;
-        let mut reached_coeff = false;
-        let mut reached_exp = false;
-        let mut reached_base = false;
-
-        let mut coeff_digits = Vec::new();
-        let mut exp_digits = Vec::new();
-
-        let mut term_index = 0;
+        let mut terms: Vec<String> = Vec::new();
+        let mut current_term = String::new();
 
         for i in 0..msg_chars.len() {
             match msg_chars[i] {
-                '+' => {
-                    if !reached_coeff {
-                        reached_coeff = true;
-                        coeff_sign = true;
-                    } else if reached_exp {
-                        exp_sign = true;
-                    } else {
-                        if term_index > 0 {
-                            let coeff_value;
+                '+' | '-' => {
+                    if i > 0 {
+                        match msg_chars[i - 1] {
+                            '0'..='9' | 'a'..='z' | 'A'..='Z' => {
+                                terms.push(current_term.clone());
 
-                            if coeff_digits.len() > 0 {
-                                coeff_value = coeff_digits
-                                    .iter()
-                                    .collect::<String>()
-                                    .parse::<isize>()
-                                    .unwrap()
-                                    * if coeff_sign { 1 } else { -1 };
-                            } else {
-                                coeff_value = if coeff_sign { 1 } else { -1 };
+                                current_term = String::new();
                             }
-
-                            let exp_value;
-
-                            if exp_digits.len() > 0 {
-                                exp_value = exp_digits
-                                    .iter()
-                                    .collect::<String>()
-                                    .parse::<isize>()
-                                    .unwrap()
-                                    * if exp_sign { 1 } else { -1 };
-                            } else {
-                                exp_value = 0;
-                            }
-
-                            terms.push((coeff_value, exp_value));
-                            term_index += 1;
+                            _ => {}
                         }
-
-                        reached_coeff = false;
-                        reached_exp = false;
-                        reached_base = false;
-
-                        coeff_sign = false;
-                        exp_sign = false;
                     }
+
+                    current_term.push(msg_chars[i]);
                 }
-                '-' => {
-                    if !reached_coeff {
-                        reached_coeff = true;
-                        coeff_sign = false;
-                    } else if reached_exp {
-                        exp_sign = false;
-                    } else {
-                        if term_index > 0 {
-                            let coeff_value;
-
-                            if coeff_digits.len() > 0 {
-                                coeff_value = coeff_digits
-                                    .iter()
-                                    .collect::<String>()
-                                    .parse::<isize>()
-                                    .unwrap()
-                                    * if coeff_sign { 1 } else { -1 };
-                            } else {
-                                coeff_value = if coeff_sign { 1 } else { -1 };
-                            }
-
-                            let exp_value;
-
-                            if exp_digits.len() > 0 {
-                                exp_value = exp_digits
-                                    .iter()
-                                    .collect::<String>()
-                                    .parse::<isize>()
-                                    .unwrap()
-                                    * if exp_sign { 1 } else { -1 };
-                            } else {
-                                exp_value = 0;
-                            }
-
-                            terms.push((coeff_value, exp_value));
-                            term_index += 1;
-                        }
-
-                        reached_coeff = false;
-                        reached_exp = false;
-                        reached_base = false;
-
-                        coeff_sign = false;
-                        exp_sign = false;
-                    }
+                _ => {
+                    current_term.push(msg_chars[i]);
                 }
-                '0'..='9' => {
-                    if reached_coeff {
-                        coeff_digits.push(msg_chars[i]);
-                    } else if reached_exp || reached_base {
-                        reached_exp = true;
-
-                        exp_digits.push(msg_chars[i]);
-                    } else {
-                        println!("{}", term_index);
-                        println!("{}", msg_chars[i]);
-
-                        if term_index > 0 {
-                            println!("{:?}", terms[(term_index - 1) as usize]);
-                        }
-                        panic!("Unexpected digit");
-                    }
-                }
-                'a'..='z' | 'A'..='Z' => {
-                    assert_eq!(msg_chars[i], base);
-                    reached_base = true;
-                }
-                '^' => reached_exp = true,
-                _ => {}
             }
         }
 
-        // // More than one letter is used for the base
-        // if base_regex.captures_len() != 1 {
-        //     panic!("Polynomial should only consist of one base");
-        // }
+        terms.push(current_term);
 
-        // let seperator = Regex::new(r"[+-]").unwrap();
-        // let neg_seperator = Regex::new(r"[^+-]").unwrap();
+        println!("{:?}", terms);
 
-        // let signs: String = neg_seperator
-        //     .split(&msg)
-        //     .filter(|x| seperator.is_match(*x))
-        //     .collect::<Vec<_>>()
-        //     .join("");
+        for term in terms.iter() {
+            let mut coeff_sign = true;
+            let mut coeff_digits = Vec::new();
 
-        // let terms = seperator.split(&msg).collect::<Vec<_>>();
-        // let mut coeff = Vec::<isize>::new();
+            let mut reached_base = false;
 
-        // for (i, t) in terms.iter().enumerate() {
-        //     println!("{}", t);
+            let mut exp_sign = true;
+            let mut exp_digits = Vec::new();
 
-        //     // if(t.len() )
+            for (i, c) in term.chars().enumerate() {
+                match c {
+                    '+' | '-' => {
+                        if i == 0 {
+                            coeff_sign = if c == '+' { true } else { false };
+                        } else {
+                            exp_sign = if c == '+' { true } else { false };
+                        }
+                    }
+                    '0'..='9' => {
+                        if !reached_base {
+                            coeff_digits.push(c);
+                        } else {
+                            exp_digits.push(c);
+                        }
+                    }
+                    'a'..='z' | 'A'..='Z' => {
+                        reached_base = true;
+                        assert_eq!(base, c);
+                    }
+                    _ => {}
+                }
+            }
 
-        //     let b_i = t.find(base);
+            let coeff_val = coeff_digits
+                .into_iter()
+                .collect::<String>()
+                .parse::<isize>()
+                .unwrap()
+                * if coeff_sign { 1 } else { -1 };
 
-        //     match b_i {
-        //         Some(index) => {
-        //             if index == 0 {
-        //                 coeff.push(1);
+            let mut exp_val = 0;
+
+            if exp_digits.len() == 0 {
+                if reached_base {
+                    exp_val = if exp_sign { 1 } else { -1 };
+                }
+            } else {
+                exp_val = exp_digits
+                    .into_iter()
+                    .collect::<String>()
+                    .parse::<isize>()
+                    .unwrap()
+                    * if exp_sign { 1 } else { -1 };
+            }
+
+            println!("{}   {}", coeff_sign, exp_sign);
+
+            println!("{}   {}", coeff_val, exp_val);
+        }
+
+        // for i in 0..msg_chars.len() {
+        //     match msg_chars[i] {
+        //         '+' => {
+        //             if !reached_coeff {
+        //                 reached_coeff = true;
+        //                 coeff_sign = true;
+        //             } else if reached_exp {
+        //                 exp_sign = true;
         //             } else {
-        //                 let coeff_substr = t.chars().take(index).into_iter().collect::<String>();
+        //                 if term_index > 0 {
+        //                     let coeff_value;
 
-        //                 coeff.push(
-        //                     coeff_substr.parse::<isize>().unwrap()
-        //                         * (if signs.chars().nth(i).unwrap() == '+' {
-        //                             1
-        //                         } else {
-        //                             -1
-        //                         }),
-        //                 );
+        //                     if coeff_digits.len() > 0 {
+        //                         coeff_value = coeff_digits
+        //                             .iter()
+        //                             .collect::<String>()
+        //                             .parse::<isize>()
+        //                             .unwrap()
+        //                             * if coeff_sign { 1 } else { -1 };
+        //                     } else {
+        //                         coeff_value = if coeff_sign { 1 } else { -1 };
+        //                     }
+
+        //                     let exp_value;
+
+        //                     if exp_digits.len() > 0 {
+        //                         exp_value = exp_digits
+        //                             .iter()
+        //                             .collect::<String>()
+        //                             .parse::<isize>()
+        //                             .unwrap()
+        //                             * if exp_sign { 1 } else { -1 };
+        //                     } else {
+        //                         exp_value = 0;
+        //                     }
+
+        //                     terms.push((coeff_value, exp_value));
+        //                     term_index += 1;
+        //                 }
+
+        //                 reached_coeff = false;
+        //                 reached_exp = false;
+        //                 reached_base = false;
+
+        //                 coeff_sign = false;
+        //                 exp_sign = false;
         //             }
         //         }
-        //         None => {
-        //             coeff.push(
-        //                 t.parse::<isize>().unwrap()
-        //                     * (if signs.chars().nth(i).unwrap() == '+' {
-        //                         1
+        //         '-' => {
+        //             if !reached_coeff {
+        //                 reached_coeff = true;
+        //                 coeff_sign = false;
+        //             } else if reached_exp {
+        //                 exp_sign = false;
+        //             } else {
+        //                 if term_index > 0 {
+        //                     let coeff_value;
+
+        //                     if coeff_digits.len() > 0 {
+        //                         coeff_value = coeff_digits
+        //                             .iter()
+        //                             .collect::<String>()
+        //                             .parse::<isize>()
+        //                             .unwrap()
+        //                             * if coeff_sign { 1 } else { -1 };
         //                     } else {
-        //                         -1
-        //                     }),
-        //             );
+        //                         coeff_value = if coeff_sign { 1 } else { -1 };
+        //                     }
+
+        //                     let exp_value;
+
+        //                     if exp_digits.len() > 0 {
+        //                         exp_value = exp_digits
+        //                             .iter()
+        //                             .collect::<String>()
+        //                             .parse::<isize>()
+        //                             .unwrap()
+        //                             * if exp_sign { 1 } else { -1 };
+        //                     } else {
+        //                         exp_value = 0;
+        //                     }
+
+        //                     terms.push((coeff_value, exp_value));
+        //                     term_index += 1;
+        //                 }
+
+        //                 reached_coeff = false;
+        //                 reached_exp = false;
+        //                 reached_base = false;
+
+        //                 coeff_sign = false;
+        //                 exp_sign = false;
+        //             }
         //         }
+        //         '0'..='9' => {
+        //             if reached_coeff {
+        //                 coeff_digits.push(msg_chars[i]);
+        //             } else if reached_exp || reached_base {
+        //                 reached_exp = true;
+
+        //                 exp_digits.push(msg_chars[i]);
+        //             } else {
+        //                 println!("{}", term_index);
+        //                 println!("{}", msg_chars[i]);
+
+        //                 if term_index > 0 {
+        //                     println!("{:?}", terms[(term_index - 1) as usize]);
+        //                 }
+        //                 panic!("Unexpected digit");
+        //             }
+        //         }
+        //         'a'..='z' | 'A'..='Z' => {
+        //             assert_eq!(msg_chars[i], base);
+        //             reached_base = true;
+        //         }
+        //         '^' => reached_exp = true,
+        //         _ => {}
         //     }
         // }
+
+        // More than one letter is used for the base
+        if base_regex.captures_len() != 1 {
+            panic!("Polynomial should only consist of one base");
+        }
+
+        let seperator = Regex::new(r"[+-]").unwrap();
+        let neg_seperator = Regex::new(r"[^+-]").unwrap();
+
+        let signs: String = neg_seperator
+            .split(&msg)
+            .filter(|x| seperator.is_match(*x))
+            .collect::<Vec<_>>()
+            .join("");
+
+        let terms = seperator.split(&msg).collect::<Vec<_>>();
+        let mut coeff = Vec::<isize>::new();
+
+        for (i, t) in terms.iter().enumerate() {
+            println!("{}", t);
+
+            // if(t.len() )
+
+            let b_i = t.find(base);
+
+            match b_i {
+                Some(index) => {
+                    if index == 0 {
+                        coeff.push(1);
+                    } else {
+                        let coeff_substr = t.chars().take(index).into_iter().collect::<String>();
+
+                        coeff.push(
+                            coeff_substr.parse::<isize>().unwrap()
+                                * (if signs.chars().nth(i).unwrap() == '+' {
+                                    1
+                                } else {
+                                    -1
+                                }),
+                        );
+                    }
+                }
+                None => {
+                    coeff.push(
+                        t.parse::<isize>().unwrap()
+                            * (if signs.chars().nth(i).unwrap() == '+' {
+                                1
+                            } else {
+                                -1
+                            }),
+                    );
+                }
+            }
+        }
 
         Self::new(
             ((0 as isize)..(N as isize))
