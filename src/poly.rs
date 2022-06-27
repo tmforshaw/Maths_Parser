@@ -4,14 +4,6 @@ pub struct Poly {
     base: char,
 }
 
-// pub struct ConstPoly<const N: usize> {
-//     coeff: [isize; N],
-//     exp: [isize; N],
-//     base: char,
-// }
-
-// impl<const N: usize> ConstPoly<N> {}
-
 #[allow(dead_code)]
 impl Poly {
     pub fn new(coeff: Vec<isize>, base: char) -> Self {
@@ -32,12 +24,7 @@ impl Poly {
     }
 
     pub fn from_str(s: &str) -> Self {
-        let mut msg = s.trim().replace(' ', "");
-
-        // Has no sign at the start
-        if !(msg.as_str().starts_with('-') || msg.as_str().starts_with('+')) {
-            msg = format!("{}{}", '+', msg)
-        }
+        let msg = s.trim().replace(' ', "");
 
         // Split the expression into the different terms
         let mut terms: Vec<String> = Vec::new();
