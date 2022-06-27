@@ -5,6 +5,8 @@ mod poly;
 use crate::calculus::{Derivative, Integral};
 use poly::Poly;
 
+// TODO add command line options and runtime options
+
 fn main() {
     let p: Poly<f32>;
 
