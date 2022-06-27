@@ -1,15 +1,23 @@
-pub struct Poly<const N: usize> {
-    coeff: [isize; N],
-    pow: [isize; N],
+pub struct Poly {
+    coeff: Vec<isize>,
+    exp: Vec<isize>,
     base: char,
 }
 
+// pub struct ConstPoly<const N: usize> {
+//     coeff: [isize; N],
+//     exp: [isize; N],
+//     base: char,
+// }
+
+// impl<const N: usize> ConstPoly<N> {}
+
 #[allow(dead_code)]
-impl<const N: usize> Poly<N> {
-    pub fn new(coeff: [isize; N], base: char) -> Self {
+impl Poly {
+    pub fn new(coeff: Vec<isize>, base: char) -> Self {
         Self {
-            coeff,
-            pow: ((0 as isize)..(N as isize))
+            coeff: coeff.clone(),
+            exp: ((0 as isize)..(coeff.len() as isize))
                 .collect::<Vec<_>>()
                 .try_into()
                 .expect("Wrong size iterator"),
@@ -17,13 +25,13 @@ impl<const N: usize> Poly<N> {
         }
     }
 
-    fn new_with_pow(coeff: [isize; N], pow: [isize; N], base: char) -> Self {
-        Self { coeff, pow, base }
+    fn with_exp(coeff: Vec<isize>, exp: Vec<isize>, base: char) -> Self {
+        assert_eq!(coeff.len(), exp.len());
+
+        Self { coeff, exp, base }
     }
 
-    pub fn new_from_str(s: &str) -> Self {
-        use regex::Regex;
-
+    pub fn from_str(s: &str) -> Self {
         let mut msg = s.trim().replace(' ', "");
 
         // Has no sign at the start
@@ -31,49 +39,40 @@ impl<const N: usize> Poly<N> {
             msg = format!("{}{}", '+', msg)
         }
 
-        println!("{}", msg);
-
-        // Get the base that is used in the polynomial
-        let base_regex = Regex::new(r"[a-zA-Z]").unwrap();
-        let base = base_regex
-            .find(&msg)
-            .unwrap()
-            .as_str()
-            .chars()
-            .next()
-            .unwrap();
-
         // Split the expression into the different terms
-
-        let msg_chars = msg.chars().collect::<Vec<char>>();
         let mut terms: Vec<String> = Vec::new();
-        let mut current_term = String::new();
+        {
+            let msg_chars = msg.chars().collect::<Vec<char>>();
+            let mut current_term = String::new();
 
-        for i in 0..msg_chars.len() {
-            match msg_chars[i] {
-                '+' | '-' => {
-                    if i > 0 {
-                        match msg_chars[i - 1] {
-                            '0'..='9' | 'a'..='z' | 'A'..='Z' => {
-                                terms.push(current_term.clone());
+            for i in 0..msg_chars.len() {
+                match msg_chars[i] {
+                    '+' | '-' => {
+                        if i > 0 {
+                            match msg_chars[i - 1] {
+                                '0'..='9' | 'a'..='z' | 'A'..='Z' => {
+                                    terms.push(current_term.clone());
 
-                                current_term = String::new();
+                                    current_term = String::new();
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
-                    }
 
-                    current_term.push(msg_chars[i]);
-                }
-                _ => {
-                    current_term.push(msg_chars[i]);
+                        current_term.push(msg_chars[i]);
+                    }
+                    _ => {
+                        current_term.push(msg_chars[i]);
+                    }
                 }
             }
+
+            terms.push(current_term);
         }
 
-        terms.push(current_term);
-
-        println!("{:?}", terms);
+        let mut coeff_vals = Vec::new();
+        let mut exp_vals = Vec::new();
+        let mut base: Option<char> = None;
 
         for term in terms.iter() {
             let mut coeff_sign = true;
@@ -102,9 +101,20 @@ impl<const N: usize> Poly<N> {
                     }
                     'a'..='z' | 'A'..='Z' => {
                         reached_base = true;
-                        assert_eq!(base, c);
+
+                        if base.is_none() {
+                            base = Some(c);
+                        } else {
+                            assert_eq!(base.unwrap(), c);
+                        }
+
+                        if coeff_digits.len() == 0 {
+                            // No coefficient was written
+                            coeff_digits.push('1');
+                        }
                     }
-                    _ => {}
+                    '^' => {}
+                    _ => panic!("Unknown character"),
                 }
             }
 
@@ -130,236 +140,91 @@ impl<const N: usize> Poly<N> {
                     * if exp_sign { 1 } else { -1 };
             }
 
-            println!("{}   {}", coeff_sign, exp_sign);
-
-            println!("{}   {}", coeff_val, exp_val);
+            coeff_vals.push(coeff_val);
+            exp_vals.push(exp_val);
         }
 
-        // for i in 0..msg_chars.len() {
-        //     match msg_chars[i] {
-        //         '+' => {
-        //             if !reached_coeff {
-        //                 reached_coeff = true;
-        //                 coeff_sign = true;
-        //             } else if reached_exp {
-        //                 exp_sign = true;
-        //             } else {
-        //                 if term_index > 0 {
-        //                     let coeff_value;
+        Self::with_exp(coeff_vals, exp_vals, base.unwrap())
+    }
 
-        //                     if coeff_digits.len() > 0 {
-        //                         coeff_value = coeff_digits
-        //                             .iter()
-        //                             .collect::<String>()
-        //                             .parse::<isize>()
-        //                             .unwrap()
-        //                             * if coeff_sign { 1 } else { -1 };
-        //                     } else {
-        //                         coeff_value = if coeff_sign { 1 } else { -1 };
-        //                     }
+    pub fn len(&self) -> usize {
+        self.coeff.len()
+    }
 
-        //                     let exp_value;
+    // Descending exponent order
+    pub fn desc(&self) -> Self {
+        let mut sorted = self.coeff.iter().zip(self.exp.iter()).collect::<Vec<_>>();
+        sorted.sort_by(|a, b| b.1.cmp(a.1));
 
-        //                     if exp_digits.len() > 0 {
-        //                         exp_value = exp_digits
-        //                             .iter()
-        //                             .collect::<String>()
-        //                             .parse::<isize>()
-        //                             .unwrap()
-        //                             * if exp_sign { 1 } else { -1 };
-        //                     } else {
-        //                         exp_value = 0;
-        //                     }
+        let (c, e) = sorted.into_iter().unzip();
 
-        //                     terms.push((coeff_value, exp_value));
-        //                     term_index += 1;
-        //                 }
-
-        //                 reached_coeff = false;
-        //                 reached_exp = false;
-        //                 reached_base = false;
-
-        //                 coeff_sign = false;
-        //                 exp_sign = false;
-        //             }
-        //         }
-        //         '-' => {
-        //             if !reached_coeff {
-        //                 reached_coeff = true;
-        //                 coeff_sign = false;
-        //             } else if reached_exp {
-        //                 exp_sign = false;
-        //             } else {
-        //                 if term_index > 0 {
-        //                     let coeff_value;
-
-        //                     if coeff_digits.len() > 0 {
-        //                         coeff_value = coeff_digits
-        //                             .iter()
-        //                             .collect::<String>()
-        //                             .parse::<isize>()
-        //                             .unwrap()
-        //                             * if coeff_sign { 1 } else { -1 };
-        //                     } else {
-        //                         coeff_value = if coeff_sign { 1 } else { -1 };
-        //                     }
-
-        //                     let exp_value;
-
-        //                     if exp_digits.len() > 0 {
-        //                         exp_value = exp_digits
-        //                             .iter()
-        //                             .collect::<String>()
-        //                             .parse::<isize>()
-        //                             .unwrap()
-        //                             * if exp_sign { 1 } else { -1 };
-        //                     } else {
-        //                         exp_value = 0;
-        //                     }
-
-        //                     terms.push((coeff_value, exp_value));
-        //                     term_index += 1;
-        //                 }
-
-        //                 reached_coeff = false;
-        //                 reached_exp = false;
-        //                 reached_base = false;
-
-        //                 coeff_sign = false;
-        //                 exp_sign = false;
-        //             }
-        //         }
-        //         '0'..='9' => {
-        //             if reached_coeff {
-        //                 coeff_digits.push(msg_chars[i]);
-        //             } else if reached_exp || reached_base {
-        //                 reached_exp = true;
-
-        //                 exp_digits.push(msg_chars[i]);
-        //             } else {
-        //                 println!("{}", term_index);
-        //                 println!("{}", msg_chars[i]);
-
-        //                 if term_index > 0 {
-        //                     println!("{:?}", terms[(term_index - 1) as usize]);
-        //                 }
-        //                 panic!("Unexpected digit");
-        //             }
-        //         }
-        //         'a'..='z' | 'A'..='Z' => {
-        //             assert_eq!(msg_chars[i], base);
-        //             reached_base = true;
-        //         }
-        //         '^' => reached_exp = true,
-        //         _ => {}
-        //     }
-        // }
-
-        // More than one letter is used for the base
-        if base_regex.captures_len() != 1 {
-            panic!("Polynomial should only consist of one base");
+        Self {
+            coeff: c,
+            exp: e,
+            base: self.base,
         }
+    }
 
-        let seperator = Regex::new(r"[+-]").unwrap();
-        let neg_seperator = Regex::new(r"[^+-]").unwrap();
+    // Ascending exponent order
+    pub fn asc(&self) -> Self {
+        let mut sorted = self.coeff.iter().zip(self.exp.iter()).collect::<Vec<_>>();
+        sorted.sort_by(|a, b| a.1.cmp(b.1));
 
-        let signs: String = neg_seperator
-            .split(&msg)
-            .filter(|x| seperator.is_match(*x))
-            .collect::<Vec<_>>()
-            .join("");
+        let (c, e) = sorted.into_iter().unzip();
 
-        let terms = seperator.split(&msg).collect::<Vec<_>>();
-        let mut coeff = Vec::<isize>::new();
-
-        for (i, t) in terms.iter().enumerate() {
-            println!("{}", t);
-
-            // if(t.len() )
-
-            let b_i = t.find(base);
-
-            match b_i {
-                Some(index) => {
-                    if index == 0 {
-                        coeff.push(1);
-                    } else {
-                        let coeff_substr = t.chars().take(index).into_iter().collect::<String>();
-
-                        coeff.push(
-                            coeff_substr.parse::<isize>().unwrap()
-                                * (if signs.chars().nth(i).unwrap() == '+' {
-                                    1
-                                } else {
-                                    -1
-                                }),
-                        );
-                    }
-                }
-                None => {
-                    coeff.push(
-                        t.parse::<isize>().unwrap()
-                            * (if signs.chars().nth(i).unwrap() == '+' {
-                                1
-                            } else {
-                                -1
-                            }),
-                    );
-                }
-            }
+        Self {
+            coeff: c,
+            exp: e,
+            base: self.base,
         }
+    }
 
-        Self::new(
-            ((0 as isize)..(N as isize))
-                .collect::<Vec<_>>()
-                .try_into()
-                .expect("Wrong size iterator"),
-            'x',
-        )
+    pub fn degree(&self) -> isize {
+        self.exp.iter().max().unwrap().clone()
     }
 }
 
-impl<const N: usize> std::fmt::Display for Poly<N> {
+impl std::fmt::Display for Poly {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut msg = String::new();
 
-        for (i, c) in self.coeff.iter().enumerate().rev() {
-            if i == 0 {
-                msg.push_str(
-                    format!("{}{} ", if *c >= 0 { "+ " } else { "- " }, (*c).abs(),).as_str(),
-                );
-            } else if i == 1 {
-                msg.push_str(
-                    format!(
-                        "{}{}{} ",
-                        if *c >= 0 { "+ " } else { "- " },
-                        (*c).abs(),
-                        self.base
-                    )
-                    .as_str(),
-                );
-            } else if i < N - 1 {
-                msg.push_str(
-                    format!(
-                        "{}{}{}^{} ",
-                        if *c >= 0 { "+ " } else { "- " },
-                        (*c).abs(),
-                        self.base,
-                        self.pow[i]
-                    )
-                    .as_str(),
-                );
+        for i in 0..self.len() {
+            // Positive coefficient
+            if self.coeff[i] >= 0 {
+                // Not the first term to be printed
+                if i > 0 {
+                    msg.push_str(" + ");
+                }
+            }
+            // Negative coefficient
+            else {
+                // Not the first term to be printed
+                if i > 0 {
+                    msg.push_str(" - ");
+                } else {
+                    msg.push('-')
+                }
+            }
+
+            if self.exp[i].abs() > 0 {
+                if self.coeff[i] != 1 {
+                    msg.push_str(format!("{}{}", self.coeff[i].abs(), self.base).as_str());
+                } else {
+                    msg.push(self.base);
+                }
+
+                if self.exp[i] != 1 {
+                    // Positive exponent
+                    if self.exp[i] > 0 {
+                        msg.push_str(format!("^{}", self.exp[i]).as_str());
+                    }
+                    // Negative exponent
+                    else {
+                        msg.push_str(format!("^(-{})", self.exp[i].abs()).as_str());
+                    }
+                }
             } else {
-                msg.push_str(
-                    format!(
-                        "{}{}{}^{} ",
-                        if *c >= 0 { "" } else { "-" },
-                        (*c).abs(),
-                        self.base,
-                        self.pow[i]
-                    )
-                    .as_str(),
-                );
+                msg.push_str(format!("{}", self.coeff[i].abs()).as_str());
             }
         }
 

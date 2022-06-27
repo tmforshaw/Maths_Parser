@@ -24,11 +24,13 @@ mod poly;
 use poly::Poly;
 
 fn main() {
-    // let p = Poly::new([1, 2, -3], 'x');
+    // input!("{}", "Please enter a polynomial: ").as_str()
 
-    let p = Poly::<3>::new_from_str("1x^+2 - 10x + 1");
+    let p = Poly::from_str("10x^3 + 9x^2 + 5");
 
-    // println!("{}", p);
-
-    // println!("You typed: {}", input!("{}", "Please enter some text: "));
+    println!(
+        "You made a degree {} polynomial:\n\t{}",
+        p.degree(),
+        p.desc()
+    );
 }
