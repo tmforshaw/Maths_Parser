@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 pub struct Poly<const N: usize> {
     coeff: [isize; N],
     pow: [isize; N],
@@ -26,66 +24,213 @@ impl<const N: usize> Poly<N> {
     pub fn new_from_str(s: &str) -> Self {
         use regex::Regex;
 
-        let msg = s.trim().replace(' ', "");
+        let mut msg = s.trim().replace(' ', "");
+
+        // Has no sign at the start
+        if !(msg.as_str().starts_with('-') || msg.as_str().starts_with('+')) {
+            msg = format!("{}{}", '+', msg)
+        }
 
         println!("{}", msg);
 
+        // Get the base that is used in the polynomial
         let base_regex = Regex::new(r"[a-zA-Z]").unwrap();
-        let base = base_regex.find(&msg).unwrap().as_str();
+        let base = base_regex
+            .find(&msg)
+            .unwrap()
+            .as_str()
+            .chars()
+            .next()
+            .unwrap();
 
-        // More than one letter is used for the base
-        if base_regex.captures_len() != 1 {
-            panic!("Polynomial should only consist of one base");
-        }
+        let msg_chars = msg.chars().collect::<Vec<char>>();
+        let mut terms: Vec<(isize, isize)> = Vec::new();
 
-        let seperator = Regex::new(r"[+-]").unwrap();
-        let neg_seperator = Regex::new(r"[^+-]").unwrap();
+        // Memory for the for loop
+        let mut coeff_sign = false;
+        let mut exp_sign = false;
+        let mut reached_coeff = false;
+        let mut reached_exp = false;
+        let mut reached_base = false;
 
-        let signs: String = neg_seperator
-            .split(&msg)
-            .filter(|x| seperator.is_match(*x))
-            .collect::<Vec<_>>()
-            .join("");
+        let mut coeff_digits = Vec::new();
+        let mut exp_digits = Vec::new();
 
-        let terms = seperator.split(&msg).collect::<Vec<_>>();
-        let mut coeff = Vec::<isize>::new();
+        let mut term_index = 0;
 
-        for (i, t) in terms.iter().enumerate() {
-            println!("{}", t);
-
-            // if(t.len() )
-
-            let b_i = t.find(base);
-
-            match b_i {
-                Some(index) => {
-                    if index == 0 {
-                        coeff.push(1);
+        for i in 0..msg_chars.len() {
+            match msg_chars[i] {
+                '+' => {
+                    if !reached_coeff {
+                        reached_coeff = true;
+                        coeff_sign = true;
+                    } else if reached_exp {
+                        exp_sign = true;
                     } else {
-                        let coeff_substr = t.chars().take(index).into_iter().collect::<String>();
+                        if term_index > 0 {
+                            let coeff_value;
 
-                        coeff.push(
-                            coeff_substr.parse::<isize>().unwrap()
-                                * (if signs.chars().nth(i).unwrap() == '+' {
-                                    1
-                                } else {
-                                    -1
-                                }),
-                        );
+                            if coeff_digits.len() > 0 {
+                                coeff_value = coeff_digits
+                                    .iter()
+                                    .collect::<String>()
+                                    .parse::<isize>()
+                                    .unwrap()
+                                    * if coeff_sign { 1 } else { -1 };
+                            } else {
+                                coeff_value = if coeff_sign { 1 } else { -1 };
+                            }
+
+                            let exp_value;
+
+                            if exp_digits.len() > 0 {
+                                exp_value = exp_digits
+                                    .iter()
+                                    .collect::<String>()
+                                    .parse::<isize>()
+                                    .unwrap()
+                                    * if exp_sign { 1 } else { -1 };
+                            } else {
+                                exp_value = 0;
+                            }
+
+                            terms.push((coeff_value, exp_value));
+                            term_index += 1;
+                        }
+
+                        reached_coeff = false;
+                        reached_exp = false;
+                        reached_base = false;
+
+                        coeff_sign = false;
+                        exp_sign = false;
                     }
                 }
-                None => {
-                    coeff.push(
-                        t.parse::<isize>().unwrap()
-                            * (if signs.chars().nth(i).unwrap() == '+' {
-                                1
+                '-' => {
+                    if !reached_coeff {
+                        reached_coeff = true;
+                        coeff_sign = false;
+                    } else if reached_exp {
+                        exp_sign = false;
+                    } else {
+                        if term_index > 0 {
+                            let coeff_value;
+
+                            if coeff_digits.len() > 0 {
+                                coeff_value = coeff_digits
+                                    .iter()
+                                    .collect::<String>()
+                                    .parse::<isize>()
+                                    .unwrap()
+                                    * if coeff_sign { 1 } else { -1 };
                             } else {
-                                -1
-                            }),
-                    );
+                                coeff_value = if coeff_sign { 1 } else { -1 };
+                            }
+
+                            let exp_value;
+
+                            if exp_digits.len() > 0 {
+                                exp_value = exp_digits
+                                    .iter()
+                                    .collect::<String>()
+                                    .parse::<isize>()
+                                    .unwrap()
+                                    * if exp_sign { 1 } else { -1 };
+                            } else {
+                                exp_value = 0;
+                            }
+
+                            terms.push((coeff_value, exp_value));
+                            term_index += 1;
+                        }
+
+                        reached_coeff = false;
+                        reached_exp = false;
+                        reached_base = false;
+
+                        coeff_sign = false;
+                        exp_sign = false;
+                    }
                 }
+                '0'..='9' => {
+                    if reached_coeff {
+                        coeff_digits.push(msg_chars[i]);
+                    } else if reached_exp || reached_base {
+                        reached_exp = true;
+
+                        exp_digits.push(msg_chars[i]);
+                    } else {
+                        println!("{}", term_index);
+                        println!("{}", msg_chars[i]);
+
+                        if term_index > 0 {
+                            println!("{:?}", terms[(term_index - 1) as usize]);
+                        }
+                        panic!("Unexpected digit");
+                    }
+                }
+                'a'..='z' | 'A'..='Z' => {
+                    assert_eq!(msg_chars[i], base);
+                    reached_base = true;
+                }
+                '^' => reached_exp = true,
+                _ => {}
             }
         }
+
+        // // More than one letter is used for the base
+        // if base_regex.captures_len() != 1 {
+        //     panic!("Polynomial should only consist of one base");
+        // }
+
+        // let seperator = Regex::new(r"[+-]").unwrap();
+        // let neg_seperator = Regex::new(r"[^+-]").unwrap();
+
+        // let signs: String = neg_seperator
+        //     .split(&msg)
+        //     .filter(|x| seperator.is_match(*x))
+        //     .collect::<Vec<_>>()
+        //     .join("");
+
+        // let terms = seperator.split(&msg).collect::<Vec<_>>();
+        // let mut coeff = Vec::<isize>::new();
+
+        // for (i, t) in terms.iter().enumerate() {
+        //     println!("{}", t);
+
+        //     // if(t.len() )
+
+        //     let b_i = t.find(base);
+
+        //     match b_i {
+        //         Some(index) => {
+        //             if index == 0 {
+        //                 coeff.push(1);
+        //             } else {
+        //                 let coeff_substr = t.chars().take(index).into_iter().collect::<String>();
+
+        //                 coeff.push(
+        //                     coeff_substr.parse::<isize>().unwrap()
+        //                         * (if signs.chars().nth(i).unwrap() == '+' {
+        //                             1
+        //                         } else {
+        //                             -1
+        //                         }),
+        //                 );
+        //             }
+        //         }
+        //         None => {
+        //             coeff.push(
+        //                 t.parse::<isize>().unwrap()
+        //                     * (if signs.chars().nth(i).unwrap() == '+' {
+        //                         1
+        //                     } else {
+        //                         -1
+        //                     }),
+        //             );
+        //         }
+        //     }
+        // }
 
         Self::new(
             ((0 as isize)..(N as isize))

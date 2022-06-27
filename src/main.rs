@@ -26,7 +26,7 @@ use poly::Poly;
 fn main() {
     // let p = Poly::new([1, 2, -3], 'x');
 
-    let p = Poly::<3>::new_from_str("x^2 - 10x + 1");
+    let p = Poly::<3>::new_from_str("1x^+2 - 10x + 1");
 
     // println!("{}", p);
 
