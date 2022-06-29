@@ -22,44 +22,62 @@ impl<
 where
     <T as std::str::FromStr>::Err: std::fmt::Debug,
 {
-    fn new(coeff: Vec<T>, exp: Vec<T>, base: char) -> Self {
-        assert_eq!(coeff.len(), exp.len());
-
-        Self { coeff, exp, base }
+    fn new(coeff: Vec<T>, exp: Vec<T>, base: char) -> Option<Self> {
+        if coeff.len() == exp.len() {
+            Some(Self { coeff, exp, base })
+        } else {
+            println!("Poly creation error: coeff Vec and exp Vec are different lengths\n");
+            None
+        }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_str(s: &str) -> Option<Self> {
         let msg = s.trim().replace(' ', "");
+
+        if msg.len() == 0 {
+            println!("Given polynomial was empty\n");
+            return None;
+        }
 
         // Split the expression into the different terms
         let mut terms: Vec<String> = Vec::new();
-        {
-            let msg_chars = msg.chars().collect::<Vec<char>>();
-            let mut current_term = String::new();
 
-            for i in 0..msg_chars.len() {
-                match msg_chars[i] {
-                    '+' | '-' => {
-                        if i > 0 {
-                            match msg_chars[i - 1] {
-                                '0'..='9' | 'a'..='z' | 'A'..='Z' => {
-                                    terms.push(current_term.clone());
+        let msg_chars = msg.chars().collect::<Vec<char>>();
+        let mut current_term = String::new();
 
-                                    current_term = String::new();
-                                }
-                                _ => {}
+        for i in 0..msg_chars.len() {
+            match msg_chars[i] {
+                '+' | '-' => {
+                    if i > 0 {
+                        match msg_chars[i - 1] {
+                            '0'..='9' | 'a'..='z' | 'A'..='Z' => {
+                                terms.push(current_term.clone());
+
+                                current_term = String::new();
                             }
+                            _ => {}
                         }
+                    }
 
-                        current_term.push(msg_chars[i]);
-                    }
-                    _ => {
-                        current_term.push(msg_chars[i]);
-                    }
+                    current_term.push(msg_chars[i]);
+                }
+                '^' | '0'..='9' | 'a'..='z' | 'A'..='Z' | '.' => {
+                    current_term.push(msg_chars[i]);
+                }
+                _ => {
+                    println!("Unexpected character in polynomial\n");
+                    return None;
                 }
             }
+        }
 
-            terms.push(current_term);
+        // Put the last term in the terms Vec
+        terms.push(current_term);
+
+        // There are no valid terms
+        if terms.len() == 0 {
+            println!("No valid terms in given polynomial\n");
+            return None;
         }
 
         let mut coeff_vals = Vec::new();
@@ -96,8 +114,10 @@ where
 
                         if base.is_none() {
                             base = Some(c);
-                        } else {
-                            assert_eq!(base.unwrap(), c);
+                        } else if base.unwrap() != c {
+                            // Ensure only one character is being used for the base
+                            println!("Please use the same letter for the base of each term\n");
+                            return None;
                         }
 
                         if coeff_digits.len() == 0 {
@@ -106,14 +126,16 @@ where
                         }
                     }
                     '^' => {}
-                    _ => panic!("Unknown character"),
+                    _ => {
+                        // Should never reach this
+                        panic!("Unknown character found\n");
+                    }
                 }
             }
 
             let coeff_val = coeff_digits
                 .into_iter()
                 .collect::<String>()
-                .as_str()
                 .parse::<T>()
                 .unwrap()
                 * if coeff_sign {
@@ -122,7 +144,7 @@ where
                     FromPrimitive::from_isize(-1).unwrap()
                 };
 
-            let mut exp_val: T = FromPrimitive::from_isize(0).unwrap();
+            let exp_val;
 
             if exp_digits.len() == 0 {
                 if reached_base {
@@ -131,6 +153,8 @@ where
                     } else {
                         FromPrimitive::from_isize(-1).unwrap()
                     };
+                } else {
+                    exp_val = FromPrimitive::from_isize(0).unwrap();
                 }
             } else {
                 exp_val = exp_digits
@@ -149,7 +173,7 @@ where
             exp_vals.push(exp_val);
         }
 
-        Self::new(coeff_vals, exp_vals, base.unwrap())
+        Self::new(coeff_vals, exp_vals, base.unwrap_or('x'))
     }
 
     pub fn len(&self) -> usize {
@@ -279,8 +303,8 @@ where
             .iter()
             .zip(self.exp.clone().iter())
             .filter_map(|(&c, &e)| {
-                // Remove if new coefficient is 0
-                if c * e == FromPrimitive::from_isize(0).unwrap() {
+                // Remove if new coefficient would be 0
+                if e == FromPrimitive::from_isize(0).unwrap() {
                     None
                 } else {
                     Some((c * e, e - FromPrimitive::from_isize(1).unwrap()))
@@ -323,14 +347,16 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Debug,
 {
     fn integral(&self) -> Self {
+        // TODO add constant C
+
         let (new_coeff, new_exp) = self
             .coeff
             .clone()
             .iter()
             .zip(self.exp.clone().iter())
             .filter_map(|(&c, &e)| {
-                // Remove if new coefficient is 0
-                if c / (e + FromPrimitive::from_isize(1).unwrap())
+                // Remove if new coefficient would be undefined
+                if (e + FromPrimitive::from_isize(1).unwrap())
                     == FromPrimitive::from_isize(0).unwrap()
                 {
                     None
