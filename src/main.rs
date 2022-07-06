@@ -9,18 +9,16 @@ use poly::Poly;
 // TODO add constant C for integrals
 
 fn main() {
-    let p: Poly<f32>;
-
     // Accept command line arguments
     let args: Vec<String> = std::env::args().collect();
-    if args.len() == 1 {
-        p = Poly::from_str(input!("{}", "Please enter a polynomial: ").as_str())
+    let p: Poly<f32> = if args.len() == 1 {
+        Poly::from_str(input!("{}", "Please enter a polynomial: ").as_str())
             .unwrap()
-            .desc();
+            .desc()
         // p = Poly::<f32>::from_str("10x^3 + 9x^2 + 5").unwrap().desc();
     } else {
-        p = Poly::from_str(args[1].as_str()).unwrap().desc();
-    }
+        Poly::from_str(args[1].as_str()).unwrap().desc()
+    };
 
     println!("You input a degree {} polynomial:\n\t{}", p.degree(), p);
     println!();

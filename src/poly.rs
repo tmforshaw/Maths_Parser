@@ -22,15 +22,6 @@ impl<
 where
     <T as std::str::FromStr>::Err: std::fmt::Debug,
 {
-    fn new(coeff: Vec<T>, exp: Vec<T>, base: char) -> Option<Self> {
-        if coeff.len() == exp.len() {
-            Some(Self { coeff, exp, base })
-        } else {
-            println!("Poly creation error: coeff Vec and exp Vec are different lengths\n");
-            None
-        }
-    }
-
     pub fn from_str(s: &str) -> Option<Self> {
         let msg = s.trim().replace(' ', "");
 
@@ -144,20 +135,18 @@ where
                     FromPrimitive::from_isize(-1).unwrap()
                 };
 
-            let exp_val;
-
-            if exp_digits.len() == 0 {
+            let exp_val = if exp_digits.len() == 0 {
                 if reached_base {
-                    exp_val = if exp_sign {
+                    if exp_sign {
                         FromPrimitive::from_isize(1).unwrap()
                     } else {
                         FromPrimitive::from_isize(-1).unwrap()
-                    };
+                    }
                 } else {
-                    exp_val = FromPrimitive::from_isize(0).unwrap();
+                    FromPrimitive::from_isize(0).unwrap()
                 }
             } else {
-                exp_val = exp_digits
+                exp_digits
                     .into_iter()
                     .collect::<String>()
                     .parse::<T>()
@@ -166,8 +155,8 @@ where
                         FromPrimitive::from_isize(1).unwrap()
                     } else {
                         FromPrimitive::from_isize(-1).unwrap()
-                    };
-            }
+                    }
+            };
 
             coeff_vals.push(coeff_val);
             exp_vals.push(exp_val);
@@ -178,6 +167,15 @@ where
 
     pub fn len(&self) -> usize {
         self.coeff.len()
+    }
+
+    fn new(coeff: Vec<T>, exp: Vec<T>, base: char) -> Option<Self> {
+        if coeff.len() == exp.len() {
+            Some(Self { coeff, exp, base })
+        } else {
+            println!("Poly creation error: coeff Vec and exp Vec are different lengths\n");
+            None
+        }
     }
 }
 
