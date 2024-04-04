@@ -1,8 +1,12 @@
 pub mod calculus;
+mod funcs;
 mod input;
 mod poly;
 
-use crate::calculus::{Derivative, Integral};
+use crate::{
+    calculus::{Derivative, Integral},
+    funcs::math_funcs_main,
+};
 use poly::Poly;
 
 // TODO add command line options and runtime options
@@ -37,4 +41,7 @@ fn main() {
 
     println!();
     println!("The {}th integral of this is:\n\t{}", n, p.nth_integral(n));
+
+    println!();
+    math_funcs_main();
 }
